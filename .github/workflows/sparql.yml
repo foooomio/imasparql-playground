@@ -1,0 +1,91 @@
+on:
+  issue_comment:
+    types:
+      - created
+
+jobs:
+  query:
+    if: contains(github.event.comment.body, '@github-actions query')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if the user is authorized
+        run: gh api repos/imas/imasparql/contributors -q .[].login | grep -q -x ${{ github.actor }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: check-user
+
+      - name: Comment the user is not authorized
+        if: ${{ failure() && steps.check-user.outcome == 'failure' }}
+        uses: actions/github-script@v4
+        with:
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '@' + context.actor + ' You are not authorized.',
+            });
+
+      - name: Check out imas/imasparql
+        uses: actions/checkout@v2
+        with:
+          repository: 'imas/imasparql'
+
+      - name: Set up Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: 11
+
+      - name: Set up Apache Jena
+        uses: foooomio/setup-jena@v1
+
+      - name: Extract the query from the comment body
+        run: echo "$body" | sed -E '0,/@github-actions query/d' | sed -E '0,/```(sparql|rq)/d; /```/,$d' > query.rq
+        env:
+          body: ${{ github.event.comment.body }}
+
+      - name: Run the query
+        run: sparql $(find RDFs -name *.rdf -exec echo '--data={}' \;) --query=query.rq > result.txt 2> error.txt
+        id: run-query
+
+      - name: Comment the result
+        uses: actions/github-script@v4
+        with:
+          script: |
+            const fs = require('fs');
+
+            const text = fs.readFileSync('result.txt', 'utf-8');
+            const lines = text.split('\n').slice(1, -2);
+            const bars = lines[0].split('|').length - 1;
+            lines[1] = Array(bars).fill('|').join('---');
+
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: [
+                '@' + context.actor + ' ' + context.payload.comment.html_url,
+                '',
+                lines.join('\n'),
+              ].join('\n')
+            });
+
+      - name: Comment the error
+        if: ${{ failure() && steps.run-query.outcome == 'failure' }}
+        uses: actions/github-script@v4
+        with:
+          script: |
+            const fs = require('fs');
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: [
+                '@' + context.actor + ' ' + context.payload.comment.html_url,
+                '',
+                '```',
+                fs.readFileSync('error.txt', 'utf-8').trim(),
+                '```',
+              ].join('\n')
+            });
