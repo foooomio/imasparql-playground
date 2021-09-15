@@ -76,7 +76,7 @@ jobs:
                 continue;
               }
 
-              outputs[filename] = '##' + filename + '\n\n';
+              outputs[filename] = '## ' + filename + '\n\n';
               execs[filename] = exec.exec('node', args, {
                 listeners: {
                   stdout: (data) => outputs[filename] += data.toString(),
@@ -88,7 +88,7 @@ jobs:
             await Promise.allSettled(Object.values(execs));
 
             github.issues.createComment({
-              owner: context.repo.onwer,
+              owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body: Object.values(outputs).join('\n'),
