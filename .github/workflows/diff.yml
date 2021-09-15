@@ -15,9 +15,8 @@ jobs:
       - uses: actions/github-script@v4
         with:
           script: |
-            const issueBody = context.payload.event.issue.body;
             const regexp = /@github-actions diff \#?(\\d+)/;
-            const [, pull_number] = issueBody.match(regexp) || [];
+            const [, pull_number] = context.issue.body.match(regexp) || [];
 
             const pull = await octokit.pulls.get({
               owner: 'imas',
