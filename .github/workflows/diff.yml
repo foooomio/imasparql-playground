@@ -55,7 +55,7 @@ jobs:
       - uses: actions/github-script@v4
         with:
           script: |
-            const files = await github.pulls.listFiles({
+            const { data: files } = await github.pulls.listFiles({
               owner: 'imas',
               repo: 'imasparql',
               pull_number: ${{ steps.pull.outputs.number }},
