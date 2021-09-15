@@ -19,7 +19,7 @@ jobs:
             const regexp = /@github-actions diff \#?(\\d+)/;
             const [, pull_number] = issueBody.match(regexp) || [];
 
-            const pull = await octokit.pulls.get({
+            const pull = await github.pulls.get({
               owner: 'imas',
               repo: 'imasparql',
               pull_number,
@@ -53,7 +53,7 @@ jobs:
       - uses: actions/github-script@v4
         with:
           script: |
-            const files = await octokit.pulls.listFiles({
+            const files = await github.pulls.listFiles({
               owner: 'imas',
               repo: 'imasparql',
               pull_number: ${{ steps.pull.outputs.number }},
