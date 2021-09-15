@@ -16,7 +16,7 @@ jobs:
         with:
           script: |
             const issueBody = context.payload.issue.body;
-            const regexp = /@github-actions diff \#?(\\d+)/;
+            const regexp = /@github-actions diff \#?(\d+)/;
             const [, pull_number] = issueBody.match(regexp) || [];
 
             const pull = await github.pulls.get({
