@@ -36,13 +36,13 @@ jobs:
         with:
           repository: imas/imasparql
           ref: ${{ steps.pull.outputs.base_sha }}
-          path: ${{ github.workspace + '/rdf-diff/base' }}
+          path: ${{ github.workspace }}/rdf-diff/base
 
       - uses: actions/checkout@v2
         with:
           repository: imas/imasparql
           ref: ${{ steps.pull.outputs.head_sha }}
-          path: ${{ github.workspace + '/rdf-diff/head' }}
+          path: ${{ github.workspace }}/rdf-diff/head
 
       - uses: actions/setup-node@v2
         with:
