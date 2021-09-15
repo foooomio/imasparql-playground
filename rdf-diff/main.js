@@ -154,5 +154,5 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e.name + ': ' + e.message);
+  console.error(e.stack);
 });

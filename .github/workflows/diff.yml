@@ -8,9 +8,6 @@ jobs:
   diff:
     if: contains(github.event.issue.body, '@github-actions diff')
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: rdf-diff
     steps:
       - uses: actions/github-script@v4
         with:
@@ -38,19 +35,19 @@ jobs:
         with:
           repository: imas/imasparql
           ref: ${{ steps.pull.outputs.base_sha }}
-          path: ${{ github.workspace }}/rdf-diff/base
+          path: ${{ github.workspace }}/base
 
       - uses: actions/checkout@v2
         with:
           repository: imas/imasparql
           ref: ${{ steps.pull.outputs.head_sha }}
-          path: ${{ github.workspace }}/rdf-diff/head
+          path: ${{ github.workspace }}/head
 
       - uses: actions/setup-node@v2
         with:
           node-version: 14
 
-      - run: yarn install --frozen-lockfile
+      - run: yarn install --cwd rdf-diff --frozen-lockfile --non-interactive --verbose
 
       - uses: actions/github-script@v4
         with:
@@ -66,7 +63,7 @@ jobs:
             const outputs = {};
 
             for (const { filename, status } of files) {
-              const args = ['main.js'];
+              const args = ['rdf-diff/main.js'];
               if (!filename.endsWith('.rdf')) {
                 continue;
               } else if (status === 'modified') {
@@ -79,7 +76,7 @@ jobs:
                 continue;
               }
 
-              outputs[filename] = filename + '\n\n';
+              outputs[filename] = '##' + filename + '\n\n';
               execs[filename] = exec.exec('node', args, {
                 listeners: {
                   stdout: (data) => outputs[filename] += data.toString(),
