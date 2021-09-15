@@ -1,0 +1,96 @@
+on:
+  issues:
+    types:
+      - opened
+      - edited
+
+jobs:
+  diff:
+    if: contains(github.event.issue.body, '@github-actions diff')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rdf-diff
+    steps:
+      - uses: actions/github-script@v4
+        with:
+          script: |
+            const issueBody = context.payload.event.issue.body;
+            const regexp = /@github-actions diff \#?(\\d+)/;
+            const [, pull_number] = issueBody.match(regexp) || [];
+
+            const pull = await octokit.pulls.get({
+              owner: 'imas',
+              repo: 'imasparql',
+              pull_number,
+            });
+
+            core.setOutput('number', pull_number);
+            core.setOutput('head_sha', pull.head.sha);
+            core.setOutput('base_sha', pull.base.sha);
+        id: pull
+
+      - uses: actions/checkout@v2
+
+      - uses: actions/checkout@v2
+        with:
+          repository: imas/imasparql
+          ref: ${{ steps.pull.outputs.base_sha }}
+          path: ${{ github.workspace + '/rdf-diff/base' }}
+
+      - uses: actions/checkout@v2
+        with:
+          repository: imas/imasparql
+          ref: ${{ steps.pull.outputs.head_sha }}
+          path: ${{ github.workspace + '/rdf-diff/head' }}
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - run: yarn install --frozen-lockfile
+
+      - uses: actions/github-script@v4
+        with:
+          script: |
+            const files = await octokit.pulls.listFiles({
+              owner: 'imas',
+              repo: 'imasparql',
+              pull_number: ${{ steps.pull.outputs.number }},
+              per_page: 100,
+            });
+
+            const execs = {};
+            const outputs = {};
+
+            for (const { filename, status } of files) {
+              const args = ['main.js'];
+              if (!filename.endsWith('.rdf')) {
+                continue;
+              } else if (status === 'modified') {
+                args.push('base/' + filename, 'head/' + filename);
+              } else if (status === 'added') {
+                args.push('/dev/null', 'head/' + filename);
+              } else if (status === 'removed') {
+                args.push('base/' + filename, '/dev/null');
+              } else {
+                continue;
+              }
+
+              outputs[filename] = filename + '\n\n';
+              execs[filename] = exec.exec('node', args, {
+                listeners: {
+                  stdout: (data) => outputs[filename] += data.toString(),
+                  stderr: (data) => outputs[filename] += data.toString(),
+                },
+              });
+            }
+
+            await Promise.allSettled(Object.values(execs));
+
+            github.issues.createComment({
+              owner: context.repo.onwer,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: Object.values(outputs).join('\n'),
+            });
